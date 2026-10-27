@@ -1,16 +1,167 @@
 <!doctype html>
-<html lang="bg"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TWIN SMILE AI v0.2</title>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TWIN SMILE AI v0.2.1</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#101522;color:white;font:16px -apple-system,Arial}.app{padding:16px;max-width:600px;margin:auto}h2{margin:5px 0}small{color:#aebad0}.stage{position:relative;aspect-ratio:3/4;background:#202838;border-radius:20px;overflow:hidden;margin:18px 0}video,canvas{position:absolute;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}canvas{pointer-events:none}button,select{padding:13px;border-radius:12px;border:0;font:inherit}button{background:#dceeff;color:#152238;font-weight:bold}select{background:#29364d;color:white;width:100%}.controls{display:grid;gap:14px}label{display:grid;gap:7px}.status{color:#aabbd1;font-size:13px;line-height:1.5}.row{display:flex;gap:10px}.row button{flex:1}
-</style></head><body><div class="app"><h2>TWIN SMILE <span style="color:#87d4ff">AI</span></h2><small>Live Smile Studio · v0.2 · Face Tracking</small><div class="stage" id="stage"><video id="video" autoplay playsinline muted></video><canvas id="canvas"></canvas></div><div class="controls"><div class="row"><button id="start">Включи камерата</button><button id="photo">Снимка</button></div><label>Дизайн<select id="design"><option value="oval">Natural Oval</option><option value="square">Hollywood Square</option><option value="soft">Soft Rounded</option><option value="taper">Elegant Tapered</option><option value="broad">Broad Smile</option></select></label><label>Цвят<select id="shade"><option value="#f5eddc">Natural A1</option><option value="#fffaf0">Bright B1</option><option value="#ffffff">Bleach White</option></select></label><label>Размер<input id="size" type="range" min="65" max="130" value="100"></label><label><span><input type="checkbox" id="guide" checked> Контур на устата</span></label><div id="status" class="status">Натисни „Включи камерата“. Необходим е интернет за AI модела. Зъбите засега са схематични.</div></div></div>
-<script type="module">
-const $=x=>document.getElementById(x),v=$('video'),c=$('canvas'),ctx=c.getContext('2d'),stage=$('stage'),status=$('status');let detector=null,stream=null,marks=null,last=-1;
-async function load(){const {FaceLandmarker,FilesetResolver}=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs');const files=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');let opts={baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numFaces:1};try{return await FaceLandmarker.createFromOptions(files,opts)}catch(e){opts.baseOptions.delegate='CPU';return await FaceLandmarker.createFromOptions(files,opts)}}
-$('start').onclick=async()=>{try{$('start').disabled=true;status.textContent='Стартиране на камерата…';stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});v.srcObject=stream;await v.play();status.textContent='Зареждане на AI модела…';detector=await load();status.textContent='AI е активен. Усмихни се и движи главата.'}catch(e){status.textContent='Грешка: '+e.message}finally{$('start').disabled=false}};
-function draw(){const d=devicePixelRatio||1,w=stage.clientWidth,h=stage.clientHeight;if(c.width!==Math.round(w*d)||c.height!==Math.round(h*d)){c.width=Math.round(w*d);c.height=Math.round(h*d)}ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
-if(detector&&v.readyState>=2){try{if(v.currentTime!==last){last=v.currentTime;marks=detector.detectForVideo(v,performance.now()).faceLandmarks[0]||null}}catch(e){status.textContent='Проследяване: '+e.message}
-if(marks){let s=Math.max(w/v.videoWidth,h/v.videoHeight),ox=(w-v.videoWidth*s)/2,oy=(h-v.videoHeight*s)/2,p=i=>({x:marks[i].x*v.videoWidth*s+ox,y:marks[i].y*v.videoHeight*s+oy});let a=p(61),b=p(291),t=p(13),bot=p(14),up=p(0),low=p(17),width=Math.hypot(b.x-a.x,b.y-a.y),opening=Math.hypot(bot.x-t.x,bot.y-t.y);
-if($('guide').checked){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo(up.x,up.y,b.x,b.y);ctx.quadraticCurveTo(low.x,low.y,a.x,a.y);ctx.strokeStyle='#40ebc9';ctx.lineWidth=2;ctx.stroke()}
-if(width>20&&opening>width*.055){let scale=+$('size').value/100,span=width*.8*scale,tw=span/10,th=Math.min(opening*.82,width*.2)*scale,style=$('design').value;ctx.save();ctx.translate((a.x+b.x)/2,t.y+opening*.15);ctx.rotate(Math.atan2(b.y-a.y,b.x-a.x));for(let i=0;i<10;i++){let n=i-4.5,dist=Math.abs(n)/5,ww=tw*(1-dist*.2),hh=th*(1-dist*.35),x=n*tw-ww/2,y=dist*hh*.15,r=style==='square'?ww*.08:style==='soft'?ww*.34:ww*.24;ctx.beginPath();ctx.roundRect(x,y,ww,hh,Math.min(r,hh*.3));ctx.fillStyle=$('shade').value;ctx.fill();ctx.strokeStyle='#9c968d';ctx.lineWidth=.5;ctx.stroke()}ctx.restore()}}}requestAnimationFrame(draw)}draw();
-$('photo').onclick=()=>{if(!stream)return;let out=document.createElement('canvas');out.width=c.width;out.height=c.height;let x=out.getContext('2d'),w=out.width,h=out.height,s=Math.max(w/v.videoWidth,h/v.videoHeight);x.save();x.translate(w,0);x.scale(-1,1);x.drawImage(v,(w-v.videoWidth*s)/2,(h-v.videoHeight*s)/2,v.videoWidth*s,v.videoHeight*s);x.restore();x.drawImage(c,0,0);out.toBlob(b=>{if(!b)return;let url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download='twin-smile-v02.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000)})};
-</script></body></html>
+*{box-sizing:border-box}
+body{margin:0;background:#101522;color:white;font:16px -apple-system,Arial}
+.app{max-width:600px;margin:auto;padding:16px}
+h2{margin:5px 0}small,.status{color:#afbdd0}
+.stage{position:relative;aspect-ratio:3/4;background:#202838;border-radius:22px;overflow:hidden;margin:18px 0}
+video,canvas{position:absolute;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+canvas{pointer-events:none}
+.controls{display:grid;gap:15px}
+.row{display:flex;gap:10px}
+button,select{padding:14px;border:0;border-radius:12px;font:inherit}
+button{background:#dceeff;color:#152238;font-weight:700;flex:1}
+select{background:#29364d;color:white;width:100%}
+label{display:grid;gap:8px}
+.status{font-size:13px;line-height:1.5}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.js"></script>
+</head>
+<body>
+<div class="app">
+<h2>TWIN SMILE <span style="color:#87d4ff">AI</span></h2>
+<small>Live Smile Studio · v0.2.1</small>
+<div class="stage" id="stage">
+<video id="video" autoplay muted playsinline></video>
+<canvas id="canvas"></canvas>
+</div>
+<div class="controls">
+<div class="row">
+<button id="start">Включи камерата</button>
+<button id="photo">Снимка</button>
+</div>
+<label>Дизайн
+<select id="design">
+<option value="oval">Natural Oval</option>
+<option value="square">Hollywood Square</option>
+<option value="soft">Soft Rounded</option>
+<option value="taper">Elegant Tapered</option>
+<option value="broad">Broad Smile</option>
+</select></label>
+<label>Цвят
+<select id="shade">
+<option value="#f5eddc">Natural A1</option>
+<option value="#fffaf0">Bright B1</option>
+<option value="#ffffff">Bleach White</option>
+</select></label>
+<label>Размер
+<input id="size" type="range" min="65" max="130" value="100">
+</label>
+<label><span><input type="checkbox" id="guide" checked> Контур на устата</span></label>
+<div id="status" class="status">Готов за стартиране.</div>
+</div></div>
+<script>
+const $=id=>document.getElementById(id);
+const v=$('video'),c=$('canvas'),ctx=c.getContext('2d'),stage=$('stage'),status=$('status');
+let detector=null,stream=null,marks=null,last=-1,lastDetect=0;
+async function loadAI(){
+if(!window.vision||!window.vision.FaceLandmarker)throw Error('MediaPipe библиотеката не е заредена.');
+const {FaceLandmarker,FilesetResolver}=window.vision;
+const root='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm';
+const files=await FilesetResolver.forVisionTasks(root);
+const opts={
+baseOptions:{
+modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+delegate:'GPU'
+},
+runningMode:'VIDEO',numFaces:1
+};
+try{return await FaceLandmarker.createFromOptions(files,opts)}
+catch(e){opts.baseOptions.delegate='CPU';return await FaceLandmarker.createFromOptions(files,opts)}
+}
+$('start').onclick=async()=>{
+$('start').disabled=true;
+try{
+status.textContent='Включване на камерата...';
+if(!stream){
+stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+v.srcObject=stream;
+await v.play();
+}
+status.textContent='Зареждане на AI...';
+detector=await loadAI();
+status.textContent='AI е активен. Усмихни се!';
+}catch(e){status.textContent='Грешка: '+e.message}
+finally{$('start').disabled=false}
+};
+function draw(){
+const d=devicePixelRatio||1,w=stage.clientWidth,h=stage.clientHeight;
+if(c.width!==Math.round(w*d)||c.height!==Math.round(h*d)){
+c.width=Math.round(w*d);c.height=Math.round(h*d)
+}
+ctx.setTransform(d,0,0,d,0,0);
+ctx.clearRect(0,0,w,h);
+if(detector&&v.readyState>=2){
+try{
+const now=performance.now();
+if(v.currentTime!==last&&now-lastDetect>65){
+last=v.currentTime;lastDetect=now;
+marks=detector.detectForVideo(v,now).faceLandmarks[0]||null;
+}
+}catch(e){status.textContent='Tracking: '+e.message}
+if(marks){
+const s=Math.max(w/v.videoWidth,h/v.videoHeight);
+const ox=(w-v.videoWidth*s)/2,oy=(h-v.videoHeight*s)/2;
+const p=i=>({x:marks[i].x*v.videoWidth*s+ox,y:marks[i].y*v.videoHeight*s+oy});
+const a=p(61),b=p(291),t=p(13),bot=p(14),up=p(0),low=p(17);
+const width=Math.hypot(b.x-a.x,b.y-a.y);
+const opening=Math.hypot(bot.x-t.x,bot.y-t.y);
+if($('guide').checked){
+ctx.beginPath();
+ctx.moveTo(a.x,a.y);
+ctx.quadraticCurveTo(up.x,up.y,b.x,b.y);
+ctx.quadraticCurveTo(low.x,low.y,a.x,a.y);
+ctx.strokeStyle='#40ebc9';ctx.lineWidth=2;ctx.stroke();
+}
+if(width>20&&opening>width*.055){
+const scale=Number($('size').value)/100;
+const span=width*.8*scale;
+const tw=span/10;
+const th=Math.min(opening*.82,width*.2)*scale;
+const style=$('design').value;
+ctx.save();
+ctx.translate((a.x+b.x)/2,t.y+opening*.15);
+ctx.rotate(Math.atan2(b.y-a.y,b.x-a.x));
+for(let i=0;i<10;i++){
+const n=i-4.5,dist=Math.abs(n)/5;
+const ww=tw*(1-dist*.2),hh=th*(1-dist*.35);
+const x=n*tw-ww/2,y=dist*hh*.15;
+const r=style==='square'?ww*.08:style==='soft'?ww*.34:ww*.24;
+ctx.beginPath();
+ctx.roundRect(x,y,ww,hh,Math.min(r,hh*.3));
+ctx.fillStyle=$('shade').value;
+ctx.fill();
+ctx.strokeStyle='#9c968d';ctx.lineWidth=.5;ctx.stroke();
+}
+ctx.restore();
+}
+}
+}
+requestAnimationFrame(draw);
+}
+draw();
+$('photo').onclick=()=>{
+if(!stream||!v.videoWidth)return;
+const out=document.createElement('canvas');
+out.width=c.width;out.height=c.height;
+const x=out.getContext('2d'),w=out.width,h=out.height;
+const s=Math.max(w/v.videoWidth,h/v.videoHeight);
+x.save();x.translate(w,0);x.scale(-1,1);
+x.drawImage(v,(w-v.videoWidth*s)/2,(h-v.videoHeight*s)/2,v.videoWidth*s,v.videoHeight*s);
+x.restore();
+x.drawImage(c,0,0);
+out.toBlob(blob=>{
+if(!blob)return;
+const url=URL.createObjectURL(blob),a=document.createElement('a');
+a.href=url;a.download='twin-smile-v021.png';a.click();
+setTimeout(()=>URL.revokeObjectURL(url),5000);
+});
+};
+</script>
+</body>
+</html>
