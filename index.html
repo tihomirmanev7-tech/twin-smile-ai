@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TWIN SMILE AI v0.2.1</title>
+<title>TWIN SMILE AI v0.2.2</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#101522;color:white;font:16px -apple-system,Arial}
@@ -20,12 +20,11 @@ select{background:#29364d;color:white;width:100%}
 label{display:grid;gap:8px}
 .status{font-size:13px;line-height:1.5}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.js"></script>
 </head>
 <body>
 <div class="app">
 <h2>TWIN SMILE <span style="color:#87d4ff">AI</span></h2>
-<small>Live Smile Studio · v0.2.1</small>
+<small>Live Smile Studio · v0.2.2</small>
 <div class="stage" id="stage">
 <video id="video" autoplay muted playsinline></video>
 <canvas id="canvas"></canvas>
@@ -55,15 +54,18 @@ label{display:grid;gap:8px}
 <label><span><input type="checkbox" id="guide" checked> Контур на устата</span></label>
 <div id="status" class="status">Готов за стартиране.</div>
 </div></div>
-<script>
+<script type="module">
 const $=id=>document.getElementById(id);
 const v=$('video'),c=$('canvas'),ctx=c.getContext('2d'),stage=$('stage'),status=$('status');
 let detector=null,stream=null,marks=null,last=-1,lastDetect=0;
 async function loadAI(){
-if(!window.vision||!window.vision.FaceLandmarker)throw Error('MediaPipe библиотеката не е заредена.');
-const {FaceLandmarker,FilesetResolver}=window.vision;
-const root='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm';
-const files=await FilesetResolver.forVisionTasks(root);
+status.textContent='Изтегляне на MediaPipe 0.10.21...';
+const lib=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/vision_bundle.mjs');
+const FaceLandmarker=lib.FaceLandmarker||lib.default?.FaceLandmarker;
+const FilesetResolver=lib.FilesetResolver||lib.default?.FilesetResolver;
+if(!FaceLandmarker||!FilesetResolver)throw Error('MediaPipe не предоставя FaceLandmarker.');
+status.textContent='Зареждане на AI модела...';
+const files=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm');
 const opts={
 baseOptions:{
 modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
@@ -72,7 +74,11 @@ delegate:'GPU'
 runningMode:'VIDEO',numFaces:1
 };
 try{return await FaceLandmarker.createFromOptions(files,opts)}
-catch(e){opts.baseOptions.delegate='CPU';return await FaceLandmarker.createFromOptions(files,opts)}
+catch(e){
+status.textContent='Опит с CPU...';
+opts.baseOptions.delegate='CPU';
+return await FaceLandmarker.createFromOptions(files,opts);
+}
 }
 $('start').onclick=async()=>{
 $('start').disabled=true;
@@ -83,11 +89,11 @@ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audi
 v.srcObject=stream;
 await v.play();
 }
-status.textContent='Зареждане на AI...';
-detector=await loadAI();
+if(!detector)detector=await loadAI();
 status.textContent='AI е активен. Усмихни се!';
-}catch(e){status.textContent='Грешка: '+e.message}
-finally{$('start').disabled=false}
+}catch(e){
+status.textContent='Грешка: '+(e.message||String(e));
+}finally{$('start').disabled=false}
 };
 function draw(){
 const d=devicePixelRatio||1,w=stage.clientWidth,h=stage.clientHeight;
@@ -153,12 +159,12 @@ const x=out.getContext('2d'),w=out.width,h=out.height;
 const s=Math.max(w/v.videoWidth,h/v.videoHeight);
 x.save();x.translate(w,0);x.scale(-1,1);
 x.drawImage(v,(w-v.videoWidth*s)/2,(h-v.videoHeight*s)/2,v.videoWidth*s,v.videoHeight*s);
+x.drawImage(c,0,0,w,h);
 x.restore();
-x.drawImage(c,0,0);
 out.toBlob(blob=>{
 if(!blob)return;
 const url=URL.createObjectURL(blob),a=document.createElement('a');
-a.href=url;a.download='twin-smile-v021.png';a.click();
+a.href=url;a.download='twin-smile-v022.png';a.click();
 setTimeout(()=>URL.revokeObjectURL(url),5000);
 });
 };
